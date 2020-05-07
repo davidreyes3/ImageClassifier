@@ -3,7 +3,7 @@ import argparse
 
 def get_args():
     # args
-    # used for args : https://pymotw.com/3/argparse/
+    # used for args : May 7, 2020 https://pymotw.com/3/argparse/
     parser = argparse.ArgumentParser(
         description='Predict flower names from images',
     )

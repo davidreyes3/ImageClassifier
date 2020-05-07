@@ -14,6 +14,7 @@ logger = tf.get_logger()
 logger.setLevel(logging.ERROR)
 
 # used:
+# May 7, 2020
 # https://stackoverflow.com/questions/47068709/your-cpu-supports-instructions-that-this-tensorflow-binary-was-not-compiled-to-u
 # disables TensorFlow CPU message
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -33,7 +34,7 @@ def predict(image_path, model, top_k=1):
     pred_sorted = np.argsort(predictions)
     pred_sorted_flipped = np.fliplr(pred_sorted)
     indecies_top_k = pred_sorted_flipped[:, :top_k]
-    # used https://machinelearningmastery.com/index-slice-reshape-numpy-arrays-machine-learning-python/
+    # used: May7, 2020 https://machinelearningmastery.com/index-slice-reshape-numpy-arrays-machine-learning-python/
 
     probs = np.take(predictions, indecies_top_k)
     classes = indecies_top_k + 1
