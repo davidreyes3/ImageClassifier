@@ -1,29 +1,67 @@
+import argparse
+import json
+
+import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
-import argparse
+from PIL import Image
+import logging
+import os
+import utils
+import arguments
 
-print('\t\u2022 TensorFlow version:', tf.__version__)
-print('\t\u2022 tf.keras version:', tf.keras.__version__)
+logger = tf.get_logger()
+logger.setLevel(logging.ERROR)
 
-def predict():
-    # args
-    parser = argparse.ArgumentParser(
-        description='Example with long option names',
-    )
+# used:
+# https://stackoverflow.com/questions/47068709/your-cpu-supports-instructions-that-this-tensorflow-binary-was-not-compiled-to-u
+# disables TensorFlow CPU message
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-    parser.add_argument('image_path', action="store")
-    parser.add_argument('model', action="store")
-    parser.add_argument('--top_k', action="store", dest='top_k', type=int)
 
-    args = parser.parse_args()
-    image_path = args.image_path
-    model_path = args.model
-    top_k = args.top_k
+def predict(image_path, model, top_k=1):
+    if top_k < 1:
+        top_k = 1
+    im = Image.open(image_path)
+    test_image = np.asarray(im)
+    processed_test_image = utils.process_image(test_image)
+    processed_test_image = np.expand_dims(processed_test_image, axis=0)
 
-    reloaded_keras_model = tf.keras.models.load_model(model_path, custom_objects={'KerasLayer': hub.KerasLayer})
-    reloaded_keras_model.summary()
+    predictions = model.predict(processed_test_image)
 
-    print("image_path: ", image_path)
-    print("top_k: ", top_k)
+    # get indices
+    pred_sorted = np.argsort(predictions)
+    pred_sorted_flipped = np.fliplr(pred_sorted)
+    indecies_top_k = pred_sorted_flipped[:, :top_k]
+    # used https://machinelearningmastery.com/index-slice-reshape-numpy-arrays-machine-learning-python/
 
-predict()
+    probs = np.take(predictions, indecies_top_k)
+    classes = indecies_top_k + 1
+
+    return probs[0, :], classes[0, :]
+
+
+def run():
+    arg_obj = arguments.ArgumentClass()
+
+    class_names = None
+    if arg_obj.classes_path is not None:
+        with open(arg_obj.classes_path, 'r') as f:
+            class_names = json.load(f)
+
+    reloaded_keras_model = tf.keras.models.load_model(arg_obj.model_path, custom_objects={'KerasLayer': hub.KerasLayer})
+
+    # predict
+    probs, classes = predict(arg_obj.image_path, reloaded_keras_model, arg_obj.top_k)
+
+    # print probs with integer classes or with class_names
+    for i, (prob, class_index) in enumerate(zip(probs, classes)):
+        prob = prob * 100
+        if class_names is not None:
+            print("Flower name: {} - {:04.2f}%".format(class_names[str(class_index)], prob))
+        else:
+            print("Flower index: {} - {:04.2f}%".format(class_index, prob))
+
+
+run()
+
